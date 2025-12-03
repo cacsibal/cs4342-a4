@@ -16,34 +16,66 @@ def relu_prime (z):
 def f_mse(yhat, y):
     return np.mean((yhat - y)**2) / 2
 
-def forward_prop (x, y, W1, b1, W2, b2):
-    y = np.array([y])
-    b2 = np.array([b2])
-    z = (W1 @ x).ravel() + b1
-    h = relu(z)
+def forward_prop(x, y, W1, b1, W2, b2):
+    if x.ndim == 1:
+        x = x[:, np.newaxis]
 
-    yhat = W2.ravel() @ h + b2
+    b1_2d = b1.reshape(-1, 1) if b1.ndim == 1 else b1
+
+    z = W1 @ x + b1_2d  # (NUM_HIDDEN, batchSize)
+    h = relu(z)  # (NUM_HIDDEN, batchSize)
+
+    yhat = (W2 @ h).ravel() + b2  # (batchSize,) or scalar
     loss = f_mse(yhat, y)
 
     return loss, x, z, h, yhat
 
-def back_prop (X, y, W1, b1, W2, b2):
-    forward = forward_prop(X, y, W1, b1, W2, b2)
-    yhat = forward[4]
-    h = forward[3]
-    z = forward[2]
+def back_prop(X, y, W1, b1, W2, b2):
+    loss, x, z, h, yhat = forward_prop(X, y, W1, b1, W2, b2)
 
-    g = (((yhat - y).reshape(1, 1) @ W2) * relu_prime(z)).T
+    diff = np.atleast_1d(yhat - y)  # (batchSize,)
 
-    gradb1 = g 
-    gradW1 = g @ X.T
-    gradW2 = (yhat - y) @ h[:, np.newaxis].T
-    gradb2 = yhat - y
+    g = (W2.T @ diff[np.newaxis, :]) * relu_prime(z) # (NUM_HIDDEN, batchSize)
+
+    batchSize = x.shape[1]
+
+    gradW1 = (g @ x.T) / batchSize  # (NUM_HIDDEN, NUM_INPUT)
+    gradb1 = np.mean(g, axis=1)  # (NUM_HIDDEN,)
+    gradW2 = (diff @ h.T) / batchSize  # (1, NUM_HIDDEN)
+    gradb2 = np.mean(diff)  # scalar
+
     return gradW1, gradb1, gradW2, gradb2
 
 def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-2, batchSize = 64, numEpochs = 1000):
-    # TODO: finish me
-    return W1, b1, W2, b2W
+    for epoch in range(numEpochs):
+        # shuffle
+        idxs = np.arange(trainX.shape[1])
+        np.random.shuffle(idxs)
+
+        trainX = trainX[:, idxs]
+        trainY = trainY[idxs]
+
+        epoch_loss = 0
+        num_batches = np.shape(trainX)[1] // batchSize
+        for i in range(num_batches):
+            X_batch = trainX[:, i * batchSize:(i + 1) * batchSize]
+            y_batch = trainY[i * batchSize:(i + 1) * batchSize]
+
+            loss, _, _, _, _ = forward_prop(X_batch, y_batch, W1, b1, W2, b2)
+            gradW1, gradb1, gradW2, gradb2 = back_prop(X_batch, y_batch, W1, b1, W2, b2)
+
+            W1 -= epsilon * gradW1
+            b1 -= epsilon * gradb1
+            W2 -= epsilon * gradW2
+            b2 -= epsilon * gradb2
+
+            epoch_loss += loss
+
+        training_loss = epoch_loss / num_batches
+        if epoch % 100 == 0:
+            print(f"Epoch {epoch}/{numEpochs}: loss = {training_loss:.4f}")
+
+    return W1, b1, W2, b2
 
 def show_weight_vectors (W1):
     # Show weight vectors in groups of 5.
