@@ -24,7 +24,12 @@ def forward_prop (x, y, W1, b1, W2, b2):
     return loss, x, z, h, yhat
 
 def back_prop (X, y, W1, b1, W2, b2):
-    # TODO: finish me
+    forward = forward_prop(X, y, W1, b1, W2, b2)
+    yhat = forward[3]
+    h = forward[2]
+
+    gradW2 = (yhat - y) @ h
+    gradb2 = yhat - y
     return gradW1, gradb1, gradW2, gradb2
 
 def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-2, batchSize = 64, numEpochs = 1000):
