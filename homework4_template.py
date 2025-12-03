@@ -17,10 +17,14 @@ def f_mse(yhat, y):
     return np.mean((yhat - y)**2) / 2
 
 def forward_prop (x, y, W1, b1, W2, b2):
-    z = W1 @ x + b1
+    y = np.array([y])
+    b2 = np.array([b2])
+    z = (W1 @ x).T + b1
     h = relu(z)
-    yhat = W2 @ h + b2
+
+    yhat = W2.T @ h + b2
     loss = f_mse(yhat, y)
+
     return loss, x, z, h, yhat
 
 def back_prop (X, y, W1, b1, W2, b2):
