@@ -8,12 +8,21 @@ NUM_HIDDEN = 20
 NUM_OUTPUT = 1
 
 def relu (z):
-    return [max(0, z_i) for z_i in z]
+    return np.maximum(z, 0)
+
+def relu_prime (z):
+    return np.heaviside(z, 0) # relu'([0]) = [0]
+
+def f_mse(yhat, y):
+    return np.mean((yhat - y)**2) / 2
 
 def forward_prop (x, y, W1, b1, W2, b2):
-    # TODO: finish me
+    z = W1 @ x + b1
+    h = relu(z)
+    yhat = W2 @ h + b2
+    loss = f_mse(yhat, y)
     return loss, x, z, h, yhat
-   
+
 def back_prop (X, y, W1, b1, W2, b2):
     # TODO: finish me
     return gradW1, gradb1, gradW2, gradb2
