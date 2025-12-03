@@ -37,7 +37,7 @@ def back_prop (X, y, W1, b1, W2, b2):
 
     gradb1 = g 
     gradW1 = g @ X.T
-    gradW2 = (yhat - y) @ h
+    gradW2 = (yhat - y) @ h[:, np.newaxis].T
     gradb2 = yhat - y
     return gradW1, gradb1, gradW2, gradb2
 
