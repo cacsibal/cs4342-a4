@@ -25,9 +25,14 @@ def forward_prop (x, y, W1, b1, W2, b2):
 
 def back_prop (X, y, W1, b1, W2, b2):
     forward = forward_prop(X, y, W1, b1, W2, b2)
-    yhat = forward[3]
-    h = forward[2]
+    yhat = forward[4]
+    h = forward[3]
+    z = forward[2]
 
+    g = (((yhat - y) @ W2) * relu_prime(z)) @ X
+
+    gradb1 = g 
+    gradW1 = g @ X
     gradW2 = (yhat - y) @ h
     gradb2 = yhat - y
     return gradW1, gradb1, gradW2, gradb2
