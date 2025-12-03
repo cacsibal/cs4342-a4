@@ -8,8 +8,7 @@ NUM_HIDDEN = 20
 NUM_OUTPUT = 1
 
 def relu (z):
-    # TODO: finish me
-    pass
+    return [max(0, z_i) for z_i in z]
 
 def forward_prop (x, y, W1, b1, W2, b2):
     # TODO: finish me
