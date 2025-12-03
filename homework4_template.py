@@ -19,10 +19,10 @@ def f_mse(yhat, y):
 def forward_prop (x, y, W1, b1, W2, b2):
     y = np.array([y])
     b2 = np.array([b2])
-    z = (W1 @ x).T + b1
+    z = (W1 @ x).ravel() + b1
     h = relu(z)
 
-    yhat = W2.T @ h + b2
+    yhat = W2.ravel() @ h + b2
     loss = f_mse(yhat, y)
 
     return loss, x, z, h, yhat
@@ -33,10 +33,10 @@ def back_prop (X, y, W1, b1, W2, b2):
     h = forward[3]
     z = forward[2]
 
-    g = (((yhat - y) @ W2) * relu_prime(z)) @ X
+    g = (((yhat - y).reshape(1, 1) @ W2) * relu_prime(z)).T
 
     gradb1 = g 
-    gradW1 = g @ X
+    gradW1 = g @ X.T
     gradW2 = (yhat - y) @ h
     gradb2 = yhat - y
     return gradW1, gradb1, gradW2, gradb2
