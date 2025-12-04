@@ -14,7 +14,8 @@ def relu_prime (z):
     return np.heaviside(z, 0) # relu'([0]) = [0]
 
 def f_mse(yhat, y):
-    return np.mean((yhat - y)**2) / 2
+    diff = np.atleast_1d(yhat - y)
+    return np.mean(diff**2) / 2
 
 def forward_prop(x, y, W1, b1, W2, b2):
     if x.ndim == 1:
@@ -35,13 +36,19 @@ def back_prop(X, y, W1, b1, W2, b2):
 
     diff = np.atleast_1d(yhat - y)  # (batchSize,)
 
+    if np.any(np.isnan(yhat)) or np.any(np.isinf(yhat)):
+        print(f"yhat has NaN/Inf: min={np.min(yhat)}, max={np.max(yhat)}")
+    if np.any(np.isnan(h)) or np.any(np.isinf(h)):
+        print(f"h has NaN/Inf: min={np.min(h)}, max={np.max(h)}")
+
     g = (W2.T @ diff[np.newaxis, :]) * relu_prime(z) # (NUM_HIDDEN, batchSize)
 
     batchSize = x.shape[1]
 
     gradW1 = (g @ x.T) / batchSize  # (NUM_HIDDEN, NUM_INPUT)
-    gradb1 = np.mean(g, axis=1)  # (NUM_HIDDEN,)
     gradW2 = (diff @ h.T) / batchSize  # (1, NUM_HIDDEN)
+
+    gradb1 = np.mean(g, axis=1)  # (NUM_HIDDEN,)
     gradb2 = np.mean(diff)  # scalar
 
     return gradW1, gradb1, gradW2, gradb2
@@ -61,7 +68,6 @@ def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-2, batchSi
             X_batch = trainX[:, i * batchSize:(i + 1) * batchSize]
             y_batch = trainY[i * batchSize:(i + 1) * batchSize]
 
-            loss, _, _, _, _ = forward_prop(X_batch, y_batch, W1, b1, W2, b2)
             gradW1, gradb1, gradW2, gradb2 = back_prop(X_batch, y_batch, W1, b1, W2, b2)
 
             W1 -= epsilon * gradW1
@@ -69,11 +75,17 @@ def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-2, batchSi
             W2 -= epsilon * gradW2
             b2 -= epsilon * gradb2
 
+            if np.any(np.isnan(W1)) or np.any(np.isinf(W1)):
+                print(f"Training stopped at epoch {epoch}: numerical instability detected")
+                return W1, b1, W2, b2
+
+            loss, _, _, _, _ = forward_prop(X_batch, y_batch, W1, b1, W2, b2)
             epoch_loss += loss
 
         training_loss = epoch_loss / num_batches
-        if epoch % 100 == 0:
-            print(f"Epoch {epoch}/{numEpochs}: loss = {training_loss:.4f}")
+        testing_loss, _, _, _, _ = forward_prop(testX, testY, W1, b1, W2, b2)
+        if epoch == 0 or (epoch + 1) % 100 == 0 or numEpochs - epoch <= 20:
+            print(f"Epoch {epoch + 1}/{numEpochs}: Training half-MSE = {training_loss:.4f}, Testing half-MSE = {testing_loss:.4f}")
 
     return W1, b1, W2, b2
 
