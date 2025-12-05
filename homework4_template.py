@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize
+from joblib import Parallel, delayed
 
 IM_WIDTH = 48
 NUM_INPUT = IM_WIDTH**2
@@ -22,69 +23,65 @@ def forward_prop(x, y, W1, b1, W2, b2):
         x = x[:, np.newaxis]
 
     b1_2d = b1.reshape(-1, 1) if b1.ndim == 1 else b1
+    b2_2d = b2.reshape(-1, 1) if b2.ndim == 1 else b2
 
-    z = W1 @ x + b1_2d  # (NUM_HIDDEN, batchSize)
-    h = relu(z)  # (NUM_HIDDEN, batchSize)
+    z = W1 @ x + b1_2d
+    h = relu(z)
 
-    yhat = (W2 @ h).ravel() + b2  # (batchSize,) or scalar
+    yhat = W2 @ h + b2_2d
     loss = f_mse(yhat, y)
 
     return loss, x, z, h, yhat
 
-def back_prop(X, y, W1, b1, W2, b2):
+def back_prop(X, y, W1, b1, W2, b2, lambda_reg=0.):
     loss, x, z, h, yhat = forward_prop(X, y, W1, b1, W2, b2)
 
-    diff = np.atleast_1d(yhat - y)  # (batchSize,)
+    diff = np.atleast_2d(yhat - y)
 
-    if np.any(np.isnan(yhat)) or np.any(np.isinf(yhat)):
-        print(f"yhat has NaN/Inf: min={np.min(yhat)}, max={np.max(yhat)}")
-    if np.any(np.isnan(h)) or np.any(np.isinf(h)):
-        print(f"h has NaN/Inf: min={np.min(h)}, max={np.max(h)}")
-
-    g = (W2.T @ diff[np.newaxis, :]) * relu_prime(z) # (NUM_HIDDEN, batchSize)
+    g = ((diff.T @ W2) * relu_prime(z.T)).T
 
     batchSize = x.shape[1]
 
-    gradW1 = (g @ x.T) / batchSize  # (NUM_HIDDEN, NUM_INPUT)
-    gradW2 = (diff @ h.T) / batchSize  # (1, NUM_HIDDEN)
-
-    gradb1 = np.mean(g, axis=1)  # (NUM_HIDDEN,)
-    gradb2 = np.mean(diff)  # scalar
+    gradW2 = diff @ h.T / batchSize + lambda_reg * W2
+    gradb2 = np.sum(diff, axis=1) / batchSize
+    gradW1 = (g @ x.T) / batchSize + lambda_reg * W1
+    gradb1 = np.sum(g, axis=1) / batchSize
 
     return gradW1, gradb1, gradW2, gradb2
 
-def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-2, batchSize = 64, numEpochs = 1000):
+def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-3, batchSize = 64, numEpochs = 1000, lambda_reg=0., print_flag=False):
     for epoch in range(numEpochs):
         # shuffle
         idxs = np.arange(trainX.shape[1])
         np.random.shuffle(idxs)
 
-        trainX = trainX[:, idxs]
-        trainY = trainY[idxs]
+        trainX_shuffled = trainX[:, idxs]
+        trainY_shuffled = trainY[idxs]
 
         epoch_loss = 0
-        num_batches = np.shape(trainX)[1] // batchSize
+        num_batches = np.shape(trainX_shuffled)[1] // batchSize
         for i in range(num_batches):
-            X_batch = trainX[:, i * batchSize:(i + 1) * batchSize]
-            y_batch = trainY[i * batchSize:(i + 1) * batchSize]
+            X_batch = trainX_shuffled[:, i * batchSize:(i + 1) * batchSize]
+            y_batch = trainY_shuffled[i * batchSize:(i + 1) * batchSize]
 
-            gradW1, gradb1, gradW2, gradb2 = back_prop(X_batch, y_batch, W1, b1, W2, b2)
+            gradW1, gradb1, gradW2, gradb2 = back_prop(X_batch, y_batch, W1, b1, W2, b2, lambda_reg=lambda_reg)
+
+            if np.any(np.isnan(gradW1)) or np.any(np.isinf(gradW1)) or \
+               np.any(np.isnan(gradW2)) or np.any(np.isinf(gradW2)):
+                print(f"Training stopped at epoch {epoch}: numerical instability in gradients")
+                return W1, b1, W2, b2
 
             W1 -= epsilon * gradW1
             b1 -= epsilon * gradb1
             W2 -= epsilon * gradW2
             b2 -= epsilon * gradb2
 
-            if np.any(np.isnan(W1)) or np.any(np.isinf(W1)):
-                print(f"Training stopped at epoch {epoch}: numerical instability detected")
-                return W1, b1, W2, b2
-
             loss, _, _, _, _ = forward_prop(X_batch, y_batch, W1, b1, W2, b2)
             epoch_loss += loss
 
         training_loss = epoch_loss / num_batches
         testing_loss, _, _, _, _ = forward_prop(testX, testY, W1, b1, W2, b2)
-        if epoch == 0 or (epoch + 1) % 100 == 0 or numEpochs - epoch <= 20:
+        if print_flag and (epoch == 0 or (epoch + 1) % 100 == 0 or numEpochs - epoch <= 20):
             print(f"Epoch {epoch + 1}/{numEpochs}: Training half-MSE = {training_loss:.4f}, Testing half-MSE = {testing_loss:.4f}")
 
     return W1, b1, W2, b2
@@ -124,6 +121,33 @@ def checkGradient():
     print(np.sum(np.abs(gradW2 - correctGradW2)))
     print(np.sum(np.abs(gradb2.flatten() - correctGradb2)))
 
+def find_best_hyperparameters(num_trials=20):
+    results = Parallel(n_jobs=-1)(delayed(run_trial)(trainX, trainY, testX, testY, i) for i in range(num_trials))
+    # results = [run_trial(trainX, trainY, testX, testY, i) for i in range(num_trials)]
+    return min(results, key=lambda x: x[-1])
+
+def run_trial(trainX, trainY, testX, testY, i):
+    init_W1, init_b1, init_W2, init_b2 = init_weights()
+
+    epsilon = 10 ** np.random.uniform(-7, -3)
+    batch_size = np.random.choice([32, 64, 128, 256])
+    num_epochs = np.random.choice([(i + 1) * 100 for i in range(10)])
+    lambda_reg = 10 ** np.random.uniform(-4, -2)
+
+    print(f"Running trial {i + 1} with epsilon={epsilon}, batch_size={batch_size}, num_epochs={num_epochs}, lambda_reg={lambda_reg}")
+
+    W1, b1, W2, b2 = train(trainX, trainY, init_W1, init_b1, init_W2, init_b2, testX, testY, epsilon, batch_size, num_epochs, lambda_reg)
+    loss, _, _, _, _ = forward_prop(testX, testY, W1, b1, W2, b2)
+
+    return (epsilon, batch_size, num_epochs, lambda_reg, loss)
+
+def init_weights():
+    W1 = 2*(np.random.random(size=(NUM_HIDDEN, NUM_INPUT))/NUM_INPUT**0.5) - 1./NUM_INPUT**0.5
+    b1 = 0.01 * np.ones(NUM_HIDDEN)
+    W2 = 2*(np.random.random(size=(NUM_OUTPUT, NUM_HIDDEN))/NUM_HIDDEN**0.5) - 1./NUM_HIDDEN**0.5
+    b2 = np.mean(trainY)
+    return W1, b1, W2, b2
+
 if __name__ == "__main__":
     # Load data
     if "trainX" not in globals():
@@ -141,4 +165,11 @@ if __name__ == "__main__":
     b2 = np.mean(trainY)
 
     # Train NN
-    W1, b1, W2, b2 = train(trainX, trainY, W1, b1, W2, b2, testX, testY)
+    # W1, b1, W2, b2 = train(trainX, trainY, W1, b1, W2, b2, testX, testY, lambda_reg=1e-4)
+
+    (epsilon, batch_size, num_epochs, lambda_reg, loss) = find_best_hyperparameters()
+    print(f"Best hyperparameters: epsilon={epsilon}, batch_size={batch_size}, num_epochs={num_epochs}, lambda_reg={lambda_reg}, loss={loss:.4f}")
+
+# todo: find out why it breaks at epsilon >= 1e-3
+
+# Best hyperparameters: epsilon=0.00024639874590318296, batch_size=256, num_epochs=1000, lambda_reg=0.0003268457495551251, loss=80.4728
