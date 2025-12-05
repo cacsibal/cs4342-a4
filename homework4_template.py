@@ -137,9 +137,12 @@ def run_trial(trainX, trainY, testX, testY, i):
     print(f"Running trial {i + 1} with epsilon={epsilon}, batch_size={batch_size}, num_epochs={num_epochs}, lambda_reg={lambda_reg}")
 
     W1, b1, W2, b2 = train(trainX, trainY, init_W1, init_b1, init_W2, init_b2, testX, testY, epsilon, batch_size, num_epochs, lambda_reg)
-    loss, _, _, _, _ = forward_prop(testX, testY, W1, b1, W2, b2)
+    testing_loss, _, _, _, _ = forward_prop(testX, testY, W1, b1, W2, b2)
+    training_loss, _, _, _, _ = forward_prop(trainX, trainY, W1, b1, W2, b2)
 
-    return (epsilon, batch_size, num_epochs, lambda_reg, loss)
+    print(f"Trial {i + 1} finished with training loss={training_loss:.4f}, testing loss={testing_loss:.4f}")
+
+    return (epsilon, batch_size, num_epochs, lambda_reg, training_loss, testing_loss)
 
 def init_weights():
     W1 = 2*(np.random.random(size=(NUM_HIDDEN, NUM_INPUT))/NUM_INPUT**0.5) - 1./NUM_INPUT**0.5
@@ -167,8 +170,8 @@ if __name__ == "__main__":
     # Train NN
     # W1, b1, W2, b2 = train(trainX, trainY, W1, b1, W2, b2, testX, testY, lambda_reg=1e-4)
 
-    (epsilon, batch_size, num_epochs, lambda_reg, loss) = find_best_hyperparameters()
-    print(f"Best hyperparameters: epsilon={epsilon}, batch_size={batch_size}, num_epochs={num_epochs}, lambda_reg={lambda_reg}, loss={loss:.4f}")
+    (epsilon, batch_size, num_epochs, lambda_reg, training_loss, testing_loss) = find_best_hyperparameters()
+    print(f"Best hyperparameters: epsilon={epsilon}, batch_size={batch_size}, num_epochs={num_epochs}, lambda_reg={lambda_reg}, training_loss={training_loss:.4f}, testing_loss={testing_loss:.4f}")
 
 # todo: find out why it breaks at epsilon >= 1e-3
 
