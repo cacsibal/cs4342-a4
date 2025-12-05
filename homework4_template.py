@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize
 from joblib import Parallel, delayed
+import time
 
 IM_WIDTH = 48
 NUM_INPUT = IM_WIDTH**2
@@ -136,11 +137,16 @@ def run_trial(trainX, trainY, testX, testY, i):
 
     print(f"Running trial {i + 1} with epsilon={epsilon}, batch_size={batch_size}, num_epochs={num_epochs}, lambda_reg={lambda_reg}")
 
+    start_time = time.time()
     W1, b1, W2, b2 = train(trainX, trainY, init_W1, init_b1, init_W2, init_b2, testX, testY, epsilon, batch_size, num_epochs, lambda_reg)
+    end_time = time.time()
+
     testing_loss, _, _, _, _ = forward_prop(testX, testY, W1, b1, W2, b2)
     training_loss, _, _, _, _ = forward_prop(trainX, trainY, W1, b1, W2, b2)
 
-    print(f"Trial {i + 1} finished with training loss={training_loss:.4f}, testing loss={testing_loss:.4f}")
+    duration = end_time - start_time
+
+    print(f"Trial {i + 1} finished in {duration:.2f} seconds with training_loss={training_loss:.4f}, testing_loss={testing_loss:.4f}")
 
     return (epsilon, batch_size, num_epochs, lambda_reg, training_loss, testing_loss)
 
@@ -175,4 +181,4 @@ if __name__ == "__main__":
 
 # todo: find out why it breaks at epsilon >= 1e-3
 
-# Best hyperparameters: epsilon=0.00024639874590318296, batch_size=256, num_epochs=1000, lambda_reg=0.0003268457495551251, loss=80.4728
+# Best hyperparameters: epsilon=2.588336814190435e-05, batch_size=32, num_epochs=700, lambda_reg=0.0002580062735367945, training_loss=64.2999, testing_loss=80.4090
