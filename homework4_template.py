@@ -87,11 +87,24 @@ def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-3, batchSi
 
     return W1, b1, W2, b2
 
-def show_weight_vectors (W1):
-    # Show weight vectors in groups of 5.
-    for i in range(NUM_HIDDEN//5):
-        plt.imshow(np.hstack([ np.pad(np.reshape(W1[idx,:], [ IM_WIDTH, IM_WIDTH ]), 2, mode='constant') for idx in range(i*5, (i+1)*5) ]), cmap='gray'), plt.show()
+def show_weight_vectors_grid(W1, save_path="weight_vectors.png"):
+    fig, axes = plt.subplots(4, 1, figsize=(12, 10))
+    fig.suptitle('First Layer Weight Vectors (W1)', fontsize=14)
+    
+    for i in range(NUM_HIDDEN // 5):
+        # Stack 5 weight vectors horizontally with padding
+        row_image = np.hstack([
+            np.pad(W1[idx, :].reshape(IM_WIDTH, IM_WIDTH), 2, mode='constant') 
+            for idx in range(i * 5, (i + 1) * 5)
+        ])
+        
+        axes[i].imshow(row_image, cmap='gray')
+        axes[i].axis('off')
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.show()
+    print(f"Weight vectors saved to {save_path}")
 
 def loadData (which, mu = None):
     images = np.load("age_regression_X{}.npy".format(which)).reshape(-1, 48**2).T
@@ -174,11 +187,14 @@ if __name__ == "__main__":
     b2 = np.mean(trainY)
 
     # Train NN
-    # W1, b1, W2, b2 = train(trainX, trainY, W1, b1, W2, b2, testX, testY, lambda_reg=1e-4)
+    W1, b1, W2, b2 = train(trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon=2.588336814190435e-05, batchSize=32, numEpochs=700, lambda_reg=0.0002580062735367945, print_flag=True)
 
-    (epsilon, batch_size, num_epochs, lambda_reg, training_loss, testing_loss) = find_best_hyperparameters()
-    print(f"Best hyperparameters: epsilon={epsilon}, batch_size={batch_size}, num_epochs={num_epochs}, lambda_reg={lambda_reg}, training_loss={training_loss:.4f}, testing_loss={testing_loss:.4f}")
+    #(epsilon, batch_size, num_epochs, lambda_reg, training_loss, testing_loss) = find_best_hyperparameters()
+    #print(f"Best hyperparameters: epsilon={epsilon}, batch_size={batch_size}, num_epochs={num_epochs}, lambda_reg={lambda_reg}, training_loss={training_loss:.4f}, testing_loss={testing_loss:.4f}")
+    
+    # Display and save weight vectors
+    show_weight_vectors_grid(W1, "weight_vectors.png")
 
-# todo: find out why it breaks at epsilon >= 1e-3
+    # todo: find out why it breaks at epsilon >= 1e-3
 
-# Best hyperparameters: epsilon=2.588336814190435e-05, batch_size=32, num_epochs=700, lambda_reg=0.0002580062735367945, training_loss=64.2999, testing_loss=80.4090
+    # Best hyperparameters: epsilon=2.588336814190435e-05, batch_size=32, num_epochs=700, lambda_reg=0.0002580062735367945, training_loss=64.2999, testing_loss=80.4090
