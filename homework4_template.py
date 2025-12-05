@@ -32,6 +32,7 @@ def forward_prop(x, y, W1, b1, W2, b2):
     yhat = W2 @ h + b2_2d
     loss = f_mse(yhat, y)
 
+    # print("yhat", np.shape(yhat), yhat)
     return loss, x, z, h, yhat
 
 def back_prop(X, y, W1, b1, W2, b2, lambda_reg=0.):
@@ -40,6 +41,7 @@ def back_prop(X, y, W1, b1, W2, b2, lambda_reg=0.):
     diff = np.atleast_2d(yhat - y)
 
     g = ((diff.T @ W2) * relu_prime(z.T)).T
+    # print(np.shape(g))
 
     batchSize = x.shape[1]
 
@@ -67,6 +69,8 @@ def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-3, batchSi
 
             gradW1, gradb1, gradW2, gradb2 = back_prop(X_batch, y_batch, W1, b1, W2, b2, lambda_reg=lambda_reg)
 
+            # print(f"gradW1 shape: {np.shape(gradW1)}, gradW2 shape: {np.shape(gradW2)}, gradb1 shape: {np.shape(gradb1)}, gradb2 shape: {np.shape(gradb2)}")
+
             if np.any(np.isnan(gradW1)) or np.any(np.isinf(gradW1)) or \
                np.any(np.isnan(gradW2)) or np.any(np.isinf(gradW2)):
                 print(f"Training stopped at epoch {epoch}: numerical instability in gradients")
@@ -76,6 +80,8 @@ def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-3, batchSi
             b1 -= epsilon * gradb1
             W2 -= epsilon * gradW2
             b2 -= epsilon * gradb2
+
+            # print("W1 shape", np.shape(W1), "b1 shape", np.shape(b1), "W2 shape", np.shape(W2), "b2 shape", np.shape(b2))
 
             loss, _, _, _, _ = forward_prop(X_batch, y_batch, W1, b1, W2, b2)
             epoch_loss += loss
@@ -90,17 +96,17 @@ def train (trainX, trainY, W1, b1, W2, b2, testX, testY, epsilon = 1e-3, batchSi
 def show_weight_vectors_grid(W1, save_path="weight_vectors.png"):
     fig, axes = plt.subplots(4, 1, figsize=(12, 10))
     fig.suptitle('First Layer Weight Vectors (W1)', fontsize=14)
-    
+
     for i in range(NUM_HIDDEN // 5):
         # Stack 5 weight vectors horizontally with padding
         row_image = np.hstack([
-            np.pad(W1[idx, :].reshape(IM_WIDTH, IM_WIDTH), 2, mode='constant') 
+            np.pad(W1[idx, :].reshape(IM_WIDTH, IM_WIDTH), 2, mode='constant')
             for idx in range(i * 5, (i + 1) * 5)
         ])
-        
+
         axes[i].imshow(row_image, cmap='gray')
         axes[i].axis('off')
-    
+
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.show()
@@ -191,7 +197,7 @@ if __name__ == "__main__":
 
     #(epsilon, batch_size, num_epochs, lambda_reg, training_loss, testing_loss) = find_best_hyperparameters()
     #print(f"Best hyperparameters: epsilon={epsilon}, batch_size={batch_size}, num_epochs={num_epochs}, lambda_reg={lambda_reg}, training_loss={training_loss:.4f}, testing_loss={testing_loss:.4f}")
-    
+
     # Display and save weight vectors
     show_weight_vectors_grid(W1, "weight_vectors.png")
 
